@@ -222,9 +222,12 @@ sub _parse {
                 # Patch for older-styled pool syntax
                 if ( $1 eq 'member' ) {
                     push @{$parsed->{$data->{'obj'}}->{$data->{'key'}}->{'members'}}, $2;
-                    $self->{'ConfigVer'} ||= '9.2';
                     next;
-                };
+                }
+                if ( $1 eq 'rule' ) {
+                    push @{$parsed->{$data->{'obj'}}->{$data->{'key'}}->{'rules'}}, split( /\s/, $2 );
+                    next;
+                }
                 $parsed->{$data->{'obj'}}->{$data->{'key'}}->{$1} = $2;
             }
 
