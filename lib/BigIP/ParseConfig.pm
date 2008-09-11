@@ -210,7 +210,7 @@ sub _parse {
 
         my ( $P );
 
-        if ( $ln =~ /^(auth|monitor|node|partition|pool|profile|route|rule|self|user|virtual)\s+(.*)\s+{$/ ) {
+        if ( $ln =~ /^(auth|monitor|node|partition|pool|profile|route|rule|self|snatpool|user|virtual)\s+(.*)\s+{$/ ) {
             $data->{'obj'} = $1;
             $data->{'key'} = $2;
         }
