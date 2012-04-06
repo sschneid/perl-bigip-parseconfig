@@ -1,6 +1,9 @@
 #/usr/bin/env perl
 use Test::More 0.96;
 use Test::Deep;
+use File::Temp;
+use File::Compare;
+use Text::Diff ();
 
 BEGIN {
     use_ok('BigIP::ParseConfig');
@@ -39,6 +42,22 @@ test_object(
     }
 );
 
+test_object(
+    'snat', 'snat-a',{
+        'origins' => [
+          '172.16.1.5',
+          '172.16.1.6'
+        ],
+        'translation' => '10.0.0.5'
+    }
+);
+
+test_object(
+    'snat', 'snat-b',{
+        'origins' => '172.16.1.7',
+        'translation' => '10.0.0.6'
+    }
+);
 
 test_object(
     'monitor',
@@ -130,12 +149,12 @@ test_object (
 },
 );
 
-SKIP: {
-    skip 'not implemented yet', 4;
 TODO: {
     local $TODO = "Support objects: nat, snat, shell";
     test_object( 'user', 'root', { password => 'crypt "crypted_password"' } );
 }
+SKIP: {
+    skip 'not implemented yet', 3;
 
 TODO: {
     local $TODO = "Support option name with space";
@@ -214,5 +233,24 @@ configsync {
 
 cmp_deeply([$bip->members('http.pool')], [qw(172.16.1.11:http 172.16.1.12:http)], 'members : http.pool');
 
+
+$bip->modify(
+    type => 'snat',
+    key  => 'snat-b',
+    translation => '10.0.0.7',
+);
+
+$bip->modify(
+    type => 'snat',
+    key  => 'snat-b',
+    translation => '10.0.0.6',
+);
+
+diag explain $bip->{Raw}->{snat}->{'snat-b'};
+
+my ($fh, $fname) = File::Temp::tempfile(UNLINK => 1);
+$bip->write($fname);
+ok(compare($config_file, $fname) == 0, 'compare written file')
+    or diag Text::Diff::diff($config_file, $fname, {STYLE => 'Unified'});
 
 done_testing;

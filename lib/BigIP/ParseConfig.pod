@@ -79,6 +79,8 @@ B<Example>
 
 =item virtuals
 
+=item snats 
+
 List the names of all found objects of the referring method.
 
 B<Examples>
@@ -104,6 +106,8 @@ B<Examples>
 =item user ( USER )
 
 =item virtual ( VIRTUAL )
+
+=item snat ( SNAT )
 
 Return a hash of the object specified.
 

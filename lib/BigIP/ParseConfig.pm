@@ -44,6 +44,7 @@ sub routes     { return shift->_objectlist( 'route' ); }
 sub rules      { return shift->_objectlist( 'rule' ); }
 sub users      { return shift->_objectlist( 'user' ); }
 sub virtuals   { return shift->_objectlist( 'virtual' ); }
+sub snats      { return shift->_objectlist( 'snat' ); }
 
 # Return an object hash
 sub monitor    { return shift->_object( 'monitor', shift ); }
@@ -55,6 +56,7 @@ sub route      { return shift->_object( 'route', shift ); }
 sub rule       { return shift->_object( 'rule', shift ); }
 sub user       { return shift->_object( 'user', shift ); }
 sub virtual    { return shift->_object( 'virtual', shift ); }
+sub snat       { return shift->_object( 'snat', shift ); }
 
 # Return a list of pool members
 sub members {
@@ -106,7 +108,7 @@ sub write {
 
     die "No changes found; no write necessary" unless $self->{'Modify'};
 
-    foreach my $obj ( qw( self partition route user monitor auth profile node pool rule virtual ) ) {
+    foreach my $obj ( qw( self partition route user snat monitor auth profile node pool rule virtual) ) {
         foreach my $key ( sort keys %{$self->{'Parsed'}->{$obj}} ) {
             if ( $self->{'Modify'}->{$obj}->{$key} ) {
                 $self->{'Output'} .= "$obj $key {\n";
@@ -187,6 +189,7 @@ sub _order {
         /self/      && return qw( netmask unit floating vlan allow );
         /user/      && return qw( password description id group home shell role );
         /virtual/   && return qw( translate snat pool destination ip rules profiles persist );
+        /snat/      && return qw( translation origins vlans);
 
         return 0;
     };
@@ -203,21 +206,32 @@ sub _parse {
     my @file = <FILE>;
     close FILE;
 
-    my ( $data, $parsed );
+    my ( $data, $parsed, $brace_count, $obj_is_close );
 
     until ( !$file[0] ) {
         my $ln = shift @file;
 
         my ( $P );
 
-        if ( $ln =~ /^(auth|monitor|node|partition|pool|profile|route|rule|self|snatpool|user|virtual)\s+(.*)\s+{$/ ) {
+        if ( $ln =~ /^(auth|monitor|node|partition|pool|profile|route|rule|self|snatpool|user|virtual|snat)\s+(.*)\s+{$/ ) {
             $data->{'obj'} = $1;
             $data->{'key'} = $2;
+            $brace_count = 1;
+            $obj_is_close = 0;
         }
 
         if ( $data->{'obj'} && $data->{'key'} ) {
             $self->{'Raw'}->{$data->{'obj'}}->{$data->{'key'}} .= $ln;
 
+            if ( my @cnt = ($ln =~ /{/) ) {
+                $brace_count += @cnt;
+            }
+            if ( my @cnt = ($ln =~ /}/) ) {
+                $brace_count -= @cnt;
+            }
+            if ( $brace_count == 0 ) {
+                $obj_is_close = 1;
+            }
             if ( $ln =~ /^\s{3}(\w+)\s+(.+?)$/ ) {
                 # Patch for older-styled pool syntax
                 if ( $1 eq 'member' ) {
@@ -231,9 +245,9 @@ sub _parse {
                 $parsed->{$data->{'obj'}}->{$data->{'key'}}->{$1} = $2;
             }
 
-            if ( $ln =~ /^\s{3}(\w+)$/ ) { $data->{'list'} = $1; }
+            elsif ( $ln =~ /^\s{3}(\w+)$/ ) { $data->{'list'} = $1; }
 
-            if ( $ln =~ /^\s{6}((\w+|\d+).+?)$/ && $data->{'list'} ) {
+            elsif ( $ln =~ /^\s{6}((\w+|\d+).+?)$/ && $data->{'list'} ) {
                 no strict 'refs';
                 push @{$parsed->{$data->{'obj'}}->{$data->{'key'}}->{$data->{'list'}}}, $1;
                 use strict 'refs';
@@ -241,8 +255,10 @@ sub _parse {
                 $data->{'last'} = $1;
             }
 
-            if ( $ln =~ /^\s{9}((\w+|\d+).+?)$/ && $data->{'list'} ) {
+            elsif ( $ln =~ /^\s{9}((\w+|\d+).+?)$/ && $data->{'list'} ) {
                 $parsed->{$data->{'obj'}}->{$data->{'key'}}->{'_xtra'}->{$data->{'last'}} = $1;
+            }
+            if ( $obj_is_close == 0 ) {
             }
         }
     }

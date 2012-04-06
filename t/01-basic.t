@@ -3,6 +3,7 @@ use Test::More 0.96;
 use Test::Exception;
 use File::Temp;
 use File::Compare;
+use Text::Diff ();
 BEGIN{
     use_ok('BigIP::ParseConfig');
 }
@@ -19,7 +20,7 @@ sub test_object_count {
     my $bip = BigIP::ParseConfig->new($file);
     my $config_text;
     { local $/ = undef; local *FILE; open FILE, '<', $file or die "$! : $file"; $config_text = <FILE>; close FILE }
-    foreach my $type (qw(monitor node partition pool profile route rule user virtual)) {
+    foreach my $type (qw(monitor node partition pool profile route rule user virtual snat)) {
         my @cnt = ($config_text =~ /^$type\s/gmsx);
         my $method = $type . 's';
         is($bip->$method, scalar @cnt, "test: $method");
@@ -37,9 +38,8 @@ sub test_dump_restore {
     );
     my ($fh, $fname) = File::Temp::tempfile(UNLINK => 1);
     $bip->write($fname);
-    my $bip2 = BigIP::ParseConfig->new($fname);
-    $bip2->virtuals;
-    ok(compare($file, $fname) == 0, 'compare written file');
+    ok(compare($file, $fname) == 0, 'compare written file')
+        or diag Text::Diff::diff($file, $fname, {STYLE => 'Unified'});
 }
 
 sub test_modify {
