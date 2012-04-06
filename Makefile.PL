@@ -9,7 +9,11 @@ WriteMakefile(
     VERSION_FROM        => 'lib/BigIP/ParseConfig.pm',
     PL_FILES            => {},
     PREREQ_PM => {
-        'Test::More' => 0,
+        'Test::More'     => 0.96,
+        'Test::Exeption' => 0,
+        'Test::Deep '    => 0,
+        'File::Temp'     => 0,
+        'File::Compare'  => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'BigIP-ParseConfig-*' },
