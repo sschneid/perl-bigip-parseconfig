@@ -45,6 +45,7 @@ sub rules      { return shift->_objectlist( 'rule' ); }
 sub users      { return shift->_objectlist( 'user' ); }
 sub virtuals   { return shift->_objectlist( 'virtual' ); }
 sub snats      { return shift->_objectlist( 'snat' ); }
+sub nats       { return shift->_objectlist( 'nat' ); }
 
 # Return an object hash
 sub monitor    { return shift->_object( 'monitor', shift ); }
@@ -57,6 +58,7 @@ sub rule       { return shift->_object( 'rule', shift ); }
 sub user       { return shift->_object( 'user', shift ); }
 sub virtual    { return shift->_object( 'virtual', shift ); }
 sub snat       { return shift->_object( 'snat', shift ); }
+sub nat        { return shift->_object( 'nat', shift ); }
 
 # Return a list of pool members
 sub members {
@@ -108,7 +110,7 @@ sub write {
 
     die "No changes found; no write necessary" unless $self->{'Modify'};
 
-    foreach my $obj ( qw( self partition route user snat monitor auth profile node pool rule virtual) ) {
+    foreach my $obj ( qw( self partition route user nat snat monitor auth profile node pool rule virtual) ) {
         foreach my $key ( sort keys %{$self->{'Parsed'}->{$obj}} ) {
             if ( $self->{'Modify'}->{$obj}->{$key} ) {
                 $self->{'Output'} .= "$obj $key {\n";
@@ -134,6 +136,7 @@ sub write {
                     }
                 }
                 $self->{'Output'} .= "}\n";
+                $self->{'Output'} .= $self->{'Parsed'}->{$obj}->{$key}->{'_unparsed'};
             }
             else {
                 $self->{'Output'} .= $self->{'Raw'}->{$obj}->{$key};
@@ -213,10 +216,10 @@ sub _parse {
 
         my ( $P );
 
-        if ( $ln =~ /^(auth|monitor|node|partition|pool|profile|route|rule|self|snatpool|user|virtual|snat)\s+(.*)\s+{$/ ) {
+        if ( $ln =~ /^(auth|monitor|node|partition|pool|profile|route|rule|self|snatpool|user|virtual|snat|nat)\s+(.*)\s+{$/ ) {
             $data->{'obj'} = $1;
             $data->{'key'} = $2;
-            $brace_count = 1;
+            $brace_count = 0;
             $obj_is_close = 0;
         }
 
@@ -229,8 +232,10 @@ sub _parse {
             if ( my @cnt = ($ln =~ /}/) ) {
                 $brace_count -= @cnt;
             }
-            if ( $brace_count == 0 ) {
+            if ( $obj_is_close == 0 and $brace_count == 0 ) {
                 $obj_is_close = 1;
+                $parsed->{$data->{'obj'}}->{$data->{'key'}} ||= {};
+                next;
             }
             if ( $ln =~ /^\s{3}(\w+)\s+(.+?)$/ ) {
                 # Patch for older-styled pool syntax
@@ -258,7 +263,8 @@ sub _parse {
             elsif ( $ln =~ /^\s{9}((\w+|\d+).+?)$/ && $data->{'list'} ) {
                 $parsed->{$data->{'obj'}}->{$data->{'key'}}->{'_xtra'}->{$data->{'last'}} = $1;
             }
-            if ( $obj_is_close == 0 ) {
+            if ( $obj_is_close == 1 ) {
+                $parsed->{$data->{'obj'}}->{$data->{'key'}}->{'_unparsed'} .= $ln;
             }
         }
     }
